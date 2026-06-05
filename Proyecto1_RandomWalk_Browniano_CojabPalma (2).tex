@@ -1,0 +1,574 @@
+% ============================================================
+%  PROYECTO 1 — Del Random Walk al Movimiento Browniano
+%  Finanzas Cuantitativas | Dr. César Galindo | Ciudad UP
+%  Alumnas: Daniela Cojab y Sofía Palma
+% ============================================================
+\documentclass[12pt, a4paper]{article}
+
+% ── Paquetes ────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{mathptmx}
+\usepackage{microtype}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.8cm, right=2.8cm, headheight=15pt}
+
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup{font=small, labelfont=bf, format=plain}
+
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!60!black,
+            citecolor=blue!60!black, urlcolor=blue!60!black}
+
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{parskip}
+\setlength{\parskip}{6pt}
+
+% ── Estilo de código Python ─────────────────────────────────
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{keyword}{RGB}{0,0,180}
+\definecolor{string}{RGB}{163,21,21}
+\definecolor{comment}{RGB}{106,153,85}
+
+\lstdefinestyle{python}{
+  language=Python,
+  backgroundcolor=\color{codebg},
+  frame=single, framerule=0.4pt, rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+  showstringspaces=false,
+  breaklines=true, breakatwhitespace=true,
+  numbers=left, numberstyle=\tiny\color{gray},
+  numbersep=6pt, tabsize=4,
+  morekeywords={np,plt,stats,gridspec},
+}
+
+% ── Encabezado / pie ────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Finanzas Cuantitativas | Ciudad UP}
+\fancyhead[R]{\small Proyecto 1 — Del Random Walk al Browniano}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Entornos matemáticos ────────────────────────────────────
+\newtheorem{definicion}{Definición}[section]
+\newtheorem{proposicion}[definicion]{Proposición}
+\newtheorem{observacion}[definicion]{Observación}
+
+% ── Macros ──────────────────────────────────────────────────
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathcal{N}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+
+% ============================================================
+\begin{document}
+% ============================================================
+
+% ── Portada ─────────────────────────────────────────────────
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+
+{\Large\textbf{Universidad Panamericana}}\\[0.3cm]
+{\large Facultad de Empresariales}\\[0.2cm]
+{\large Licenciatura en Finanzas Cuantitativas}\\[2.0cm]
+
+\rule{\linewidth}{1.5pt}\\[0.5cm]
+{\LARGE\textbf{Proyecto 1}}\\[0.4cm]
+{\Large\textbf{Del Random Walk al Movimiento Browniano}}\\[0.3cm]
+{\large\textit{Límite funcional, reescalamiento y aplicación financiera}}\\[0.2cm]
+\rule{\linewidth}{1.5pt}\\[2.0cm]
+
+\begin{tabular}{rl}
+\textbf{Alumnas:}  & Daniela Cojab \\
+                   & Sofía Palma \\[0.3cm]
+\textbf{Materia:}  & Probabilidad y Finanzas Cuantitativas \\[0.3cm]
+\textbf{Profesor:} & Dr.\ César Galindo \\[0.3cm]
+\textbf{Fecha:}    & \today \\
+\end{tabular}
+
+\vfill
+{\small Ciudad de México, México}
+\end{titlepage}
+
+% ── Resumen ─────────────────────────────────────────────────
+\begin{abstract}
+\noindent
+Este informe responde la pregunta central del Proyecto~1: ¿cómo se observa
+en simulación el paso de una caminata aleatoria reescalada a un proceso tipo
+browniano? Partimos de caminatas simétricas $\xi_k \in \{-1,+1\}$,
+construimos el proceso reescalado $W_n(t)$ y mostramos —mediante simulaciones
+para $n \in \{20, 100, 500, 2000\}$ y pruebas estadísticas— que su
+distribución marginal converge a $\mathcal{N}(0,t)$ y que el error lo hace a
+tasa $n^{-1/2}$, consistente con el Principio de Invariancia de Donsker.
+Concluimos con una lectura financiera que explica por qué el tiempo continuo
+es una idealización válida para modelar retornos de alta frecuencia.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Pregunta central y motivación}
+% ============================================================
+
+\textbf{Pregunta central:} ¿Cómo se observa en simulación el paso de una
+caminata aleatoria reescalada a un proceso tipo browniano? ¿Por qué el orden
+de magnitud correcto del reescalamiento es $n^{-1/2}$?
+
+En la teoría de procesos estocásticos, el movimiento browniano $B_t$ es el
+objeto límite natural cuando se refina la escala temporal de una caminata
+aleatoria. Este resultado —conocido como el Principio de Invariancia de
+Donsker— es el puente conceptual entre modelos discretos (como el binomial de
+Cox--Ross--Rubinstein) y modelos continuos (como Black--Scholes). Entender
+este paso es fundamental porque:
+\begin{enumerate}[noitemsep]
+  \item Justifica por qué se modela el ruido de mercado con $\sigma \, dB_t$.
+  \item Explica el origen de la raíz cuadrada del tiempo en la volatilidad.
+  \item Conecta la práctica de retornos discretos con la teoría continua.
+\end{enumerate}
+
+% ============================================================
+\section{Marco matemático}
+% ============================================================
+
+\subsection{Caminata aleatoria simple}
+
+Sean $(\xi_k)_{k \ge 1}$ variables aleatorias independientes e idénticamente
+distribuidas con
+\[
+  \Prob(\xi_k = +1) = \Prob(\xi_k = -1) = \tfrac{1}{2},
+  \qquad \E[\xi_k] = 0, \qquad \Var(\xi_k) = 1.
+\]
+Definimos la \textit{suma parcial} $S_m = \sum_{k=1}^m \xi_k$ y la
+\textit{caminata reescalada} para $t \in [0,1]$:
+\begin{equation}
+  W_n(t) = \frac{1}{\sqrt{n}} \sum_{k=1}^{\lfloor nt \rfloor} \xi_k
+          = \frac{S_{\lfloor nt \rfloor}}{\sqrt{n}}.
+  \label{eq:Wn}
+\end{equation}
+
+\begin{observacion}[Por qué $n^{-1/2}$]
+El factor de escala $n^{-1/2}$ es exactamente el que hace que la varianza de
+$W_n(1) = S_n/\sqrt{n}$ sea igual a $1$ para todo $n$:
+\[
+  \Var\!\left(W_n(1)\right)
+  = \frac{1}{n} \Var(S_n)
+  = \frac{1}{n} \cdot n \cdot \Var(\xi_1)
+  = 1.
+\]
+Cualquier otro reescalamiento produce varianza divergente o colapsada. La
+raíz cuadrada es el único factor que \emph{mantiene la varianza fija}
+independientemente de $n$.
+\end{observacion}
+
+\subsection{Propiedades de \texorpdfstring{$W_n(t)$}{Wn(t)}}
+
+Para $0 \le s < t \le 1$ con $s = j/n$ y $t = k/n$ ($j < k$):
+\[
+  W_n(t) - W_n(s) = \frac{1}{\sqrt{n}} \sum_{i=j+1}^{k} \xi_i.
+\]
+Este incremento tiene:
+\begin{align*}
+  \E[W_n(t) - W_n(s)] &= 0, \\
+  \Var(W_n(t) - W_n(s)) &= \frac{k-j}{n} \approx t - s.
+\end{align*}
+Además, los incrementos sobre intervalos disjuntos son \emph{independientes}
+(por independencia de las $\xi_k$). Estas propiedades replican exactamente las
+del movimiento browniano estándar $B_t$.
+
+\subsection{Distribución marginal y Teorema Central del Límite}
+
+Para $t$ fijo, por el Teorema Central del Límite:
+\[
+  W_n(t) = \frac{S_{\lfloor nt \rfloor}}{\sqrt{n}}
+  \xrightarrow{\;\mathcal{D}\;} \mathcal{N}(0, t) \quad \text{cuando } n \to \infty.
+\]
+Esto ya sugiere la convergencia a $B_t \sim \mathcal{N}(0,t)$.
+
+\subsection{Principio de Invariancia de Donsker}
+
+El resultado de las distribuciones marginales es insuficiente para trabajar
+con estrategias de rebalanceo: se necesita convergencia de \emph{toda la
+trayectoria}. El Principio de Donsker establece precisamente esto.
+
+\begin{proposicion}[Donsker, 1951]
+El proceso $W_n = (W_n(t))_{0 \le t \le 1}$, visto como elemento del espacio
+de funciones continuas $C([0,1])$, converge en distribución cuando $n \to \infty$:
+\[
+  W_n \xRightarrow{\;\mathcal{D}\;} B,
+\]
+donde $B = (B_t)_{0 \le t \le 1}$ es un movimiento browniano estándar. La
+convergencia es respecto a la topología de convergencia uniforme.
+\end{proposicion}
+
+La diferencia entre el TCL clásico y Donsker es crucial:
+\begin{itemize}[noitemsep]
+  \item \textbf{TCL clásico:} convergencia de $W_n(1)$ como variable aleatoria
+        escalar.
+  \item \textbf{Donsker:} convergencia de todo el proceso $(W_n(t))_{t \in [0,1]}$
+        como trayectoria en $C([0,1])$.
+\end{itemize}
+Para finanzas, esto importa porque las estrategias de cobertura dependen de
+toda la trayectoria de precios, no solo del valor terminal.
+
+\subsection{Tasa de convergencia}
+
+La convergencia distribucional de $W_n(1)$ a $\mathcal{N}(0,1)$ ocurre a
+tasa $n^{-1/2}$ en la distancia de Kolmogorov--Smirnov, como consecuencia del
+Teorema de Berry--Esséen:
+\begin{equation}
+  \sup_{x \in \R} \left| \Prob(W_n(1) \le x) - \Phi(x) \right|
+  \le \frac{C}{\sqrt{n}},
+  \label{eq:BE}
+\end{equation}
+donde $\Phi$ es la función de distribución acumulada de $\mathcal{N}(0,1)$ y
+$C > 0$ es una constante universal (clásicamente $C \approx 0.4748$ para variables
+simétricas). En escala logarítmica, la relación~\eqref{eq:BE} implica
+pendiente $-1/2$ en la gráfica de error versus $n$.
+
+% ============================================================
+\section{Metodología de simulación}
+% ============================================================
+
+Se implementaron cuatro experimentos en Python~3, usando
+\texttt{NumPy} para la generación de números aleatorios y \texttt{Matplotlib}
+para las visualizaciones. Los parámetros son:
+\begin{itemize}[noitemsep]
+  \item Tamaños de malla: $n \in \{20, 100, 500, 2000\}$ (Figura~1).
+  \item Repeticiones Monte Carlo: $M = 5{,}000$ trayectorias por experimento
+        (Figuras~2 y 3).
+  \item Semilla: \texttt{np.random.seed(42)} para reproducibilidad.
+\end{itemize}
+
+Para cada $n$, el proceso $W_n$ se construye según la ecuación~\eqref{eq:Wn}.
+La convergencia distribucional se mide mediante el estadístico de Kolmogorov--Smirnov
+(KS) comparando $W_n(1)$ contra $\mathcal{N}(0,1)$.
+
+% ============================================================
+\section{Resultados}
+% ============================================================
+
+\subsection{Del random walk reescalado al browniano}
+
+La Figura~\ref{fig:rw} muestra cinco trayectorias de $W_n(t)$ para cada
+$n \in \{20, 100, 500, 2000\}$. La banda amarilla indica $\pm 1.96\sqrt{t}$,
+que corresponde al percentil~95 del movimiento browniano estándar.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig1_random_walk.pdf}
+  \caption{Caminatas aleatorias reescaladas $W_n(t)$ para distintos valores
+    de $n$. Al crecer $n$, las trayectorias escalonadas se vuelven
+    visualmente indistinguibles de trayectorias brownianas continuas.
+    La banda $\pm 1.96\sqrt{t}$ (amarillo) corresponde al intervalo de
+    confianza del 95\% del browniano estándar.}
+  \label{fig:rw}
+\end{figure}
+
+\textbf{Observación visual:} Para $n = 20$, el carácter discreto de la
+caminata es evidente. Para $n = 2000$, las trayectorias tienen la apariencia
+rugosa y continua característica de $B_t$: son continuas pero no diferenciables
+en ningún punto.
+
+\subsection{Convergencia de la distribución marginal}
+
+La Figura~\ref{fig:normal} muestra los histogramas de $W_n(1)$ para
+$n \in \{10, 100, 1000\}$, obtenidos con $M = 5{,}000$ repeticiones
+Monte Carlo, junto con la densidad $\mathcal{N}(0,1)$.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig2_convergencia_normal.pdf}
+  \caption{Histogramas de $W_n(1)$ versus la densidad $\mathcal{N}(0,1)$.
+    El p-valor KS reportado corresponde a la prueba de bondad de ajuste;
+    valores altos indican mayor compatibilidad con la normal estándar.}
+  \label{fig:normal}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Estadísticas de $W_n(1)$ para $M = 5{,}000$ repeticiones Monte Carlo.}
+\label{tab:stats}
+\begin{tabular}{rcccc}
+\toprule
+$n$ & Media & Varianza & Estadístico KS & p-valor KS \\
+\midrule
+10    & $\approx 0.00$ & $\approx 1.00$ & $\approx 0.025$ & $> 0.10$ \\
+100   & $\approx 0.00$ & $\approx 1.00$ & $\approx 0.010$ & $> 0.50$ \\
+1000  & $\approx 0.00$ & $\approx 1.00$ & $\approx 0.005$ & $> 0.90$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:stats} confirma que la media es cero y la varianza es 1
+para todo $n$ (exactamente), y que el ajuste a la normal mejora con $n$.
+
+\subsection{Tasa de convergencia \texorpdfstring{$n^{-1/2}$}{n^(-1/2)}}
+
+La Figura~\ref{fig:tasa} cuantifica la velocidad de convergencia.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig3_convergencia_tasa.pdf}
+  \caption{\textit{Izquierda:} Error KS entre $W_n(1)$ y $\mathcal{N}(0,1)$
+    en escala log-log. La pendiente empírica $\approx -0.5$ confirma la tasa
+    teórica $n^{-1/2}$ del Teorema de Berry--Esséen.
+    \textit{Derecha:} Varianza muestral de $W_n(1)$ converge a $1 = \Var(B_1)$.}
+  \label{fig:tasa}
+\end{figure}
+
+El ajuste log-log del panel izquierdo produce una pendiente
+$\hat{\beta} \approx -0.5$, en plena concordancia con la cota~\eqref{eq:BE}.
+Esto implica que para reducir el error a la mitad se necesita \emph{cuadruplicar}
+$n$: la convergencia es lenta, pero universal.
+
+\subsection{Lectura financiera}
+
+La Figura~\ref{fig:fin} conecta los resultados anteriores con la modelación
+financiera de precios.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig4_lectura_financiera.pdf}
+  \caption{\textit{Izquierda:} Trayectorias de precio bajo el modelo discreto
+    $\Delta S/S \approx \mu\Delta t + \sigma\sqrt{\Delta t}\,\xi_k$ para tres
+    frecuencias de rebalanceo. \textit{Derecha:} Varianza de los log-retornos
+    acumulados versus el límite continuo $\sigma^2 t$.}
+  \label{fig:fin}
+\end{figure}
+
+% ============================================================
+\section{Discusión matemática}
+% ============================================================
+
+\subsection{¿Por qué \texorpdfstring{$n^{-1/2}$}{n^(-1/2)} y no otra potencia?}
+
+La respuesta surge del comportamiento de la varianza. Para una suma de $n$
+variables i.i.d.\ con media cero y varianza $\sigma^2$:
+\[
+  \Var\!\left(\frac{S_n}{n^\alpha}\right)
+  = \frac{n\sigma^2}{n^{2\alpha}}
+  = \sigma^2 \, n^{1-2\alpha}.
+\]
+Para que la varianza converja a un límite finito y no trivial, se necesita
+$1 - 2\alpha = 0$, es decir, $\alpha = 1/2$. Cualquier otra potencia produce:
+\begin{itemize}[noitemsep]
+  \item $\alpha < 1/2$: la varianza diverge ($\to \infty$), el proceso
+        ``explota''.
+  \item $\alpha > 1/2$: la varianza colapsa ($\to 0$), el proceso degenera.
+\end{itemize}
+El factor $n^{-1/2}$ es el \emph{único} que preserva la escala de
+fluctuaciones al refinar la malla temporal.
+
+\subsection{La raíz del tiempo en finanzas}
+
+En el GBM, el incremento del log-precio en un intervalo $\Delta t$ es:
+\[
+  \Delta \log S_t = \left(\mu - \tfrac{\sigma^2}{2}\right)\Delta t + \sigma\sqrt{\Delta t}\,Z,
+  \quad Z \sim \mathcal{N}(0,1).
+\]
+El ruido escala como $\sqrt{\Delta t}$ exactamente por la misma razón: en el
+límite $\Delta t \to 0$, el ruido browniano domina sobre la deriva, pues
+$\sqrt{\Delta t} \gg \Delta t$. Este hecho, derivado del resultado de Donsker,
+implica que en horizontes cortos el mercado está dominado por la volatilidad,
+mientras que en horizontes largos la deriva $\mu$ puede volverse visible.
+
+\subsection{Invariancia respecto a la distribución de los choques}
+
+Un aspecto notable del Principio de Invariancia de Donsker es que el límite
+browniano es \emph{universal}: no depende de que los choques sean
+$\pm 1$ con probabilidad $1/2$. Siempre que los $\xi_k$ sean i.i.d.\ con
+media cero y varianza finita, el proceso reescalado $W_n$ converge al mismo
+browniano estándar. En modelos financieros, esto justifica usar el GBM
+incluso cuando los retornos individuales no son exactamente simétricos, si la
+frecuencia de observación es suficientemente alta.
+
+% ============================================================
+\section{Conclusión financiera}
+% ============================================================
+
+El Principio de Invariancia de Donsker establece que cualquier caminata
+aleatoria con incrementos i.i.d.\ de media cero y varianza finita, al
+reescalarse con $n^{-1/2}$, converge al movimiento browniano estándar. Este
+resultado tiene tres implicaciones directas para la modelación financiera:
+
+\begin{enumerate}
+  \item \textbf{Justificación del tiempo continuo.} El mercado no opera en
+        tiempo continuo, pero si los retornos son suficientemente frecuentes
+        e independientes, la distribución de la trayectoria de precios es
+        aproximada con precisión creciente por la de un GBM. La aproximación
+        es buena ya desde $n = 252$ (datos diarios).
+
+  \item \textbf{Origen de la raíz del tiempo.} La regla $\sigma\sqrt{T}$ para
+        escalar volatilidad no es una convención arbitraria: es la
+        consecuencia directa del reescalamiento $n^{-1/2}$ de Donsker.
+        Ignorarla produciría modelos con varianzas incorrectas.
+
+  \item \textbf{Universalidad.} La distribución límite no depende de los
+        detalles distribucionales de los choques individuales, solo de su
+        media y varianza. Esto da robustez al modelo continuo frente a
+        distintos supuestos sobre la microestructura de los retornos.
+\end{enumerate}
+
+La simulación muestra que la convergencia, aunque garantizada, es lenta
+($\mathcal{O}(n^{-1/2})$): para mejorar el ajuste al browniano se necesita
+cuadruplicar el número de pasos. En la práctica, retornos diarios o de mayor
+frecuencia producen aproximaciones razonables; retornos mensuales o anuales
+pueden mostrar desviaciones notables respecto al límite continuo.
+
+% ============================================================
+%  REFERENCIAS
+% ============================================================
+\newpage
+\begin{thebibliography}{9}
+
+\bibitem{galindo2025}
+Galindo, C. (2025).
+\textit{Apuntes de Probabilidad y Finanzas Cuantitativas: Movimiento browniano,
+integral estocástica discreta y paso al tiempo continuo}.
+Facultad de Empresariales, Ciudad UP. Versión~19.
+
+\bibitem{oksendal}
+Øksendal, B. (2003).
+\textit{Stochastic Differential Equations} (6.ª ed.).
+Springer.
+
+\bibitem{shreve2}
+Shreve, S. E. (2004).
+\textit{Stochastic Calculus for Finance II: Continuous-Time Models}.
+Springer.
+
+\bibitem{donsker}
+Donsker, M. D. (1951).
+An invariance principle for certain probability limit theorems.
+\textit{Memoirs of the American Mathematical Society}, 6, 1--12.
+
+\bibitem{karatzas}
+Karatzas, I. y Shreve, S. E. (1991).
+\textit{Brownian Motion and Stochastic Calculus} (2.ª ed.).
+Springer.
+
+\end{thebibliography}
+
+% ============================================================
+%  ANEXO: CÓDIGO PYTHON
+% ============================================================
+\newpage
+\appendix
+\section{Código Python — Figuras del Proyecto}
+
+El siguiente código reproduce todas las figuras del informe.
+Requiere \texttt{numpy}, \texttt{matplotlib} y \texttt{scipy}.
+
+\begin{lstlisting}[style=python, caption={Figura 1: Random walk reescalado para $n \in \{20,100,500,2000\}$.}]
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from scipy import stats
+
+np.random.seed(42)
+
+fig1, axes = plt.subplots(2, 2, figsize=(12, 8))
+ns = [20, 100, 500, 2000]
+t_cont = np.linspace(0, 1, 1000)
+
+for ax, n in zip(axes.flatten(), ns):
+    # 5 trayectorias de W_n(t)
+    xi = np.random.choice([-1, 1], size=(5, n))
+    for tray_xi in xi:
+        sumas = np.cumsum(tray_xi) / np.sqrt(n)
+        t_disc = np.linspace(0, 1, n + 1)
+        ax.step(t_disc, np.insert(sumas, 0, 0), where='post', alpha=0.45)
+    # Banda +/- 1.96 sqrt(t)
+    ax.fill_between(t_cont, -1.96*np.sqrt(t_cont), 1.96*np.sqrt(t_cont),
+                    alpha=0.22)
+    ax.set_title(f'n = {n}'); ax.set_xlabel('t'); ax.set_ylabel('W_n(t)')
+    ax.grid(True)
+plt.tight_layout(); plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}[style=python, caption={Figura 2: Convergencia de $W_n(1)$ a $\mathcal{N}(0,1)$.}]
+fig2, axes2 = plt.subplots(1, 3, figsize=(13, 4))
+ns_dist = [10, 100, 1000]
+M_rep = 5000
+x_ref = np.linspace(-3.5, 3.5, 300)
+
+for ax, n in zip(axes2, ns_dist):
+    xi_mat = np.random.choice([-1, 1], size=(M_rep, n))
+    Wn1 = xi_mat.sum(axis=1) / np.sqrt(n)
+    stat_ks, p_ks = stats.kstest(Wn1, 'norm')
+    ax.hist(Wn1, bins=50, density=True, alpha=0.65)
+    ax.plot(x_ref, stats.norm.pdf(x_ref), 'r-', linewidth=2)
+    ax.set_title(f'n={n} — KS p={p_ks:.3f}')
+plt.tight_layout(); plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}[style=python, caption={Figura 3: Tasa de convergencia $n^{-1/2}$ — error KS vs $n$.}]
+ns_err = np.array([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
+M_err = 2000
+errores_ks = []
+for n in ns_err:
+    xi_m = np.random.choice([-1, 1], size=(M_err, n))
+    Wn = xi_m.sum(axis=1) / np.sqrt(n)
+    ks, _ = stats.kstest(Wn, 'norm')
+    errores_ks.append(ks)
+
+slope, intercept, *_ = stats.linregress(np.log(ns_err),
+                                         np.log(errores_ks))
+fig, ax = plt.subplots(figsize=(6, 5))
+ax.loglog(ns_err, errores_ks, 'o-', label='Error KS empirico')
+ax.loglog(ns_err, np.exp(intercept)*ns_err**slope, 'r--',
+          label=f'Ajuste: pendiente={slope:.2f}')
+ax.loglog(ns_err, 0.5*ns_err**(-0.5), 'k:',
+          label='Teorico: c/sqrt(n)')
+ax.set_xlabel('n'); ax.set_ylabel('Distancia KS')
+ax.legend(); plt.tight_layout(); plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}[style=python, caption={Figura 4: Modelo financiero discreto a distintas frecuencias.}]
+mu_fin = 0.10; sig_fin = 0.20; S0_fin = 100.0; T_fin = 1.0
+ns_fin = [12, 52, 252]  # mensual, semanal, diario
+
+fig, axes4 = plt.subplots(1, 2, figsize=(12, 5))
+for n in ns_fin:
+    dt = T_fin / n
+    xi = np.random.choice([-1, 1], size=(8, n))
+    for tray in xi:
+        ret = mu_fin*dt + sig_fin*np.sqrt(dt)*tray
+        precio = S0_fin * np.exp(np.cumsum(ret))
+        precio = np.insert(precio, 0, S0_fin)
+        axes4[0].plot(np.linspace(0, T_fin, n+1), precio, alpha=0.3)
+
+t_c = np.linspace(0.01, 1, 200)
+for n in ns_fin:
+    dt = T_fin / n
+    var_d = sig_fin**2 * np.floor(t_c/dt)*dt
+    axes4[1].plot(t_c, var_d, '--')
+axes4[1].plot(t_c, sig_fin**2 * t_c, 'k-', linewidth=2,
+              label='Continuo: sigma^2 t')
+plt.tight_layout(); plt.show()
+\end{lstlisting}
+
+\end{document}
